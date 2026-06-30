@@ -7,7 +7,10 @@ import { discoverSessionContext } from './context.ts';
 import { ConversationRecordWriter } from './conversation-writer.ts';
 import { Harness } from './harness.ts';
 import { type AttachmentStore, InMemoryAttachmentStore } from './runtime/attachment-store.ts';
-import { InMemoryConversationStreamStore } from './runtime/conversation-stream-store.ts';
+import {
+	type ConversationStreamStore,
+	InMemoryConversationStreamStore,
+} from './runtime/conversation-stream-store.ts';
 import { agentStreamPath } from './runtime/event-stream-store.ts';
 import { dispatchGlobalEvent } from './runtime/events.ts';
 import { createCwdSessionEnv } from './sandbox.ts';
@@ -48,6 +51,14 @@ export interface FlueContextConfig {
 	req?: Request;
 	initialEventIndex?: number;
 	conversationWriter?: ConversationRecordWriter;
+	/**
+	 * A custom conversation-stream backend for an in-process embedding. When set (and no explicit
+	 * `conversationWriter` is provided), `createFlueContext` builds the writer from this store — the
+	 * same wiring `createNodeAgentCoordinator` does — so a host can persist the canonical conversation
+	 * to its own durable backend without adopting the dispatch/HTTP runtime. Omit for the default
+	 * in-memory store. A `conversationWriter` (if given) takes precedence.
+	 */
+	conversationStreamStore?: ConversationStreamStore;
 	attachmentStore?: AttachmentStore;
 }
 
@@ -224,7 +235,7 @@ async function createLocalConversationRuntime(config: FlueContextConfig): Promis
 	writer: ConversationRecordWriter;
 	attachments: AttachmentStore;
 }> {
-	const store = new InMemoryConversationStreamStore();
+	const store = config.conversationStreamStore ?? new InMemoryConversationStreamStore();
 	const path = config.runId === undefined
 		? agentStreamPath(config.agentName ?? 'agent', config.id)
 		: `workflow-executions/${config.runId}`;
