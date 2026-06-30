@@ -3,6 +3,7 @@ import { defineAgent } from '../src/index.ts';
 import type { FlueContextConfig } from '../src/internal.ts';
 import {
 	createFlueContext,
+	InMemoryAttachmentStore,
 	InMemoryConversationStreamStore,
 	resolveModel,
 } from '../src/internal.ts';
@@ -48,7 +49,13 @@ describe('createFlueContext() — conversationStreamStore', () => {
 			producerId: 'execution:agent-instance',
 		});
 
-		const ctx = createContext({ conversationStreamStore: store, conversationWriter });
+		// Provide an attachmentStore too, so createLocalConversationRuntime is skipped entirely
+		// (it builds both writer + attachments; a missing attachmentStore alone would still run it).
+		const ctx = createContext({
+			conversationStreamStore: store,
+			conversationWriter,
+			attachmentStore: new InMemoryAttachmentStore(),
+		});
 		await ctx.initializeRootHarness(defineAgent(() => ({ model: 'anthropic/claude-haiku-4-5' })));
 
 		expect(createStream).not.toHaveBeenCalled();
